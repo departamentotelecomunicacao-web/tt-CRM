@@ -4,74 +4,255 @@
 
 @layer base {
   :root {
+    --bg: 4 8 20;             /* ink-950 */
+    --bg-2: 7 13 31;          /* ink-900 */
+    --bg-3: 10 19 48;         /* ink-850 */
+    --surface: 255 255 255 / 0.04;
+    --surface-2: 255 255 255 / 0.06;
+    --border: 255 255 255 / 0.08;
+    --border-strong: 255 255 255 / 0.14;
+    --text: 241 245 249;       /* slate-100 */
+    --text-2: 226 232 240;     /* slate-200 */
+    --text-3: 148 163 184;     /* slate-400 */
+    --text-muted: 100 116 139; /* slate-500 */
+    --accent: 34 211 238;
+    --accent-2: 59 130 246;
     color-scheme: dark;
   }
-  html,
-  body {
-    @apply bg-ink-950 text-slate-100 antialiased;
+
+  html.light {
+    --bg: 248 250 252;
+    --bg-2: 255 255 255;
+    --bg-3: 241 245 249;
+    --surface: 15 23 42 / 0.04;
+    --surface-2: 15 23 42 / 0.06;
+    --border: 15 23 42 / 0.10;
+    --border-strong: 15 23 42 / 0.18;
+    --text: 15 23 42;
+    --text-2: 30 41 59;
+    --text-3: 71 85 105;
+    --text-muted: 100 116 139;
+    --accent: 6 182 212;
+    --accent-2: 37 99 235;
+    color-scheme: light;
+  }
+
+  html, body {
+    background: rgb(var(--bg));
+    color: rgb(var(--text));
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
+
   ::selection {
-    background: rgba(34, 211, 238, 0.25);
-    color: #fff;
+    background: rgb(var(--accent) / 0.28);
+    color: rgb(var(--text));
   }
 }
 
 @layer components {
+  .surface     { background: rgb(var(--surface)); }
+  .surface-2   { background: rgb(var(--surface-2)); }
+  .b-border    { border-color: rgb(var(--border)); }
+  .text-primary   { color: rgb(var(--text)); }
+  .text-secondary { color: rgb(var(--text-2)); }
+  .text-tertiary  { color: rgb(var(--text-3)); }
+  .text-muted     { color: rgb(var(--text-muted)); }
+
   .glass {
-    @apply border border-white/5 bg-white/[0.03] backdrop-blur-xl;
+    border: 1px solid rgb(var(--border));
+    background: rgb(var(--surface));
+    backdrop-filter: blur(20px);
   }
   .glass-strong {
-    @apply border border-white/10 bg-white/[0.05] backdrop-blur-2xl;
+    border: 1px solid rgb(var(--border-strong));
+    background: rgb(var(--surface-2));
+    backdrop-filter: blur(28px);
   }
+
   .card-premium {
-    @apply rounded-2xl border border-white/5 bg-grad-card shadow-card transition-all duration-300 hover:shadow-card-hover;
+    border-radius: 1rem;
+    border: 1px solid rgb(var(--border));
+    background:
+      linear-gradient(160deg, rgb(var(--accent-2) / 0.06) 0%, rgb(var(--accent) / 0.04) 100%),
+      rgb(var(--surface));
+    box-shadow: 0 1px 0 0 rgb(255 255 255 / 0.04), 0 12px 32px -16px rgb(0 0 0 / 0.4);
+    transition: all .25s ease;
   }
+  html.light .card-premium {
+    background:
+      linear-gradient(160deg, rgb(var(--accent-2) / 0.04) 0%, rgb(var(--accent) / 0.03) 100%),
+      rgb(255 255 255);
+    box-shadow: 0 1px 0 0 rgb(15 23 42 / 0.02), 0 12px 28px -16px rgb(15 23 42 / 0.10);
+  }
+  .card-premium:hover {
+    box-shadow: 0 1px 0 0 rgb(255 255 255 / 0.06), 0 24px 60px -20px rgb(34 211 238 / 0.30);
+  }
+  html.light .card-premium:hover {
+    box-shadow: 0 1px 0 0 rgb(15 23 42 / 0.04), 0 18px 40px -18px rgb(37 99 235 / 0.25);
+  }
+
   .gradient-text {
-    @apply bg-grad-primary bg-clip-text text-transparent;
+    background: linear-gradient(135deg, rgb(var(--accent-2)) 0%, rgb(var(--accent)) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
-  .ring-focus {
-    @apply outline-none ring-2 ring-cyan-400/40 ring-offset-2 ring-offset-ink-950;
+  .bg-grad-primary {
+    background: linear-gradient(135deg, #2740f0 0%, #3b5cff 45%, #22d3ee 100%);
   }
-  .scroll-thin::-webkit-scrollbar {
-    height: 8px;
-    width: 8px;
+  html.light .bg-grad-primary {
+    background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #06b6d4 100%);
   }
+  .bg-grad-card {
+    background: linear-gradient(160deg, rgb(var(--accent-2) / 0.10) 0%, rgb(var(--accent) / 0.06) 100%);
+  }
+  .bg-grad-glow {
+    background: radial-gradient(60% 60% at 50% 0%, rgb(var(--accent-2) / 0.35) 0%, transparent 70%);
+  }
+  html.light .bg-grad-glow {
+    background: radial-gradient(60% 60% at 50% 0%, rgb(var(--accent-2) / 0.12) 0%, transparent 70%);
+  }
+
+  .scroll-thin::-webkit-scrollbar { height: 8px; width: 8px; }
   .scroll-thin::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.06);
+    background: rgb(var(--text) / 0.12);
     border-radius: 999px;
   }
-  .scroll-thin::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.12);
-  }
-  .dot {
-    @apply inline-block h-2 w-2 rounded-full;
-  }
+  .scroll-thin::-webkit-scrollbar-thumb:hover { background: rgb(var(--text) / 0.22); }
+
   .chip {
-    @apply inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] font-medium text-slate-200;
+    display: inline-flex; align-items: center; gap: 6px;
+    border-radius: 9999px;
+    border: 1px solid rgb(var(--border-strong));
+    background: rgb(var(--surface));
+    padding: 2px 10px;
+    font-size: 11px;
+    font-weight: 500;
+    color: rgb(var(--text-2));
   }
+
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 active:scale-[0.98];
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    border-radius: 12px;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all .18s ease;
+    cursor: pointer;
   }
+  .btn:active { transform: scale(0.98); }
   .btn-primary {
-    @apply btn bg-grad-primary text-white shadow-glow hover:brightness-110;
+    background: linear-gradient(135deg,#2740f0 0%,#3b5cff 45%,#22d3ee 100%);
+    color: white;
+    box-shadow: 0 14px 36px -16px rgb(34 211 238 / 0.55);
   }
+  html.light .btn-primary {
+    background: linear-gradient(135deg,#1d4ed8 0%,#2563eb 50%,#06b6d4 100%);
+    box-shadow: 0 14px 36px -18px rgb(37 99 235 / 0.45);
+  }
+  .btn-primary:hover { filter: brightness(1.08); }
   .btn-ghost {
-    @apply btn border border-white/10 bg-white/5 text-slate-100 hover:bg-white/10;
+    border: 1px solid rgb(var(--border-strong));
+    background: rgb(var(--surface));
+    color: rgb(var(--text));
   }
+  .btn-ghost:hover { background: rgb(var(--surface-2)); }
+  .btn-danger {
+    background: linear-gradient(135deg,#dc2626 0%,#ef4444 100%);
+    color: white;
+  }
+
   .input {
-    @apply w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-400 focus:border-cyan-400/40 focus:outline-none focus:ring-2 focus:ring-cyan-400/30;
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid rgb(var(--border-strong));
+    background: rgb(var(--surface));
+    padding: 10px 14px;
+    font-size: 14px;
+    color: rgb(var(--text));
   }
+  .input::placeholder { color: rgb(var(--text-3)); }
+  .input:focus {
+    outline: none;
+    border-color: rgb(var(--accent) / 0.55);
+    box-shadow: 0 0 0 3px rgb(var(--accent) / 0.22);
+  }
+
+  .dot { display: inline-block; height: 8px; width: 8px; border-radius: 9999px; }
+
+  .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: rgb(var(--text-3)); font-weight: 600; }
 }
 
 .bg-mesh {
   background-image:
-    radial-gradient(50% 50% at 0% 0%, rgba(39, 64, 240, 0.25) 0%, transparent 60%),
-    radial-gradient(40% 40% at 100% 0%, rgba(34, 211, 238, 0.18) 0%, transparent 60%),
-    radial-gradient(60% 60% at 50% 100%, rgba(29, 43, 129, 0.35) 0%, transparent 60%);
+    radial-gradient(50% 50% at 0% 0%, rgb(var(--accent-2) / 0.20) 0%, transparent 60%),
+    radial-gradient(40% 40% at 100% 0%, rgb(var(--accent) / 0.15) 0%, transparent 60%),
+    radial-gradient(60% 60% at 50% 100%, rgb(var(--accent-2) / 0.25) 0%, transparent 60%);
 }
+html.light .bg-mesh {
+  background-image:
+    radial-gradient(50% 50% at 0% 0%, rgb(var(--accent-2) / 0.06) 0%, transparent 60%),
+    radial-gradient(40% 40% at 100% 0%, rgb(var(--accent) / 0.05) 0%, transparent 60%),
+    radial-gradient(60% 60% at 50% 100%, rgb(var(--accent-2) / 0.08) 0%, transparent 60%);
+}
+
 .bg-grid {
-  background-image: linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-image:
+    linear-gradient(rgb(var(--text) / 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--text) / 0.04) 1px, transparent 1px);
   background-size: 36px 36px;
+}
+html.light .bg-grid {
+  background-image:
+    linear-gradient(rgb(15 23 42 / 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(15 23 42 / 0.04) 1px, transparent 1px);
+}
+
+.skeleton {
+  background: linear-gradient(90deg,
+    rgb(var(--text) / 0.04) 0%,
+    rgb(var(--text) / 0.10) 50%,
+    rgb(var(--text) / 0.04) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+  border-radius: 8px;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Recharts contrast helpers */
+.recharts-tooltip-wrapper { outline: none; }
+.recharts-default-tooltip {
+  background: rgb(var(--bg-2)) !important;
+  border: 1px solid rgb(var(--border-strong)) !important;
+  border-radius: 12px !important;
+  color: rgb(var(--text)) !important;
+  box-shadow: 0 14px 32px -8px rgb(0 0 0 / 0.45) !important;
+  padding: 10px 12px !important;
+}
+.recharts-tooltip-label {
+  color: rgb(var(--text)) !important;
+  font-weight: 600 !important;
+  margin-bottom: 4px !important;
+}
+.recharts-tooltip-item,
+.recharts-tooltip-item-list,
+.recharts-tooltip-item-name,
+.recharts-tooltip-item-value,
+.recharts-tooltip-item-separator {
+  color: rgb(var(--text-2)) !important;
+}
+.recharts-cartesian-axis-tick text { fill: rgb(var(--text-3)) !important; font-size: 11px; }
+.recharts-polar-angle-axis text { fill: rgb(var(--text-2)) !important; font-size: 11px; }
+.recharts-polar-radius-axis text { fill: rgb(var(--text-3)) !important; font-size: 10px; }
+.recharts-legend-item-text { color: rgb(var(--text-2)) !important; font-size: 12px; }
+.recharts-cartesian-grid line { stroke: rgb(var(--text) / 0.08) !important; }
+.recharts-polar-grid-angle line,
+.recharts-polar-grid-concentric circle,
+.recharts-polar-grid-concentric polygon {
+  stroke: rgb(var(--text) / 0.12) !important;
 }

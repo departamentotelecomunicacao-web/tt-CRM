@@ -1,0 +1,16 @@
+[build]
+  command = "npm run netlify-build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NPM_FLAGS = "--legacy-peer-deps"
+  NEXT_TELEMETRY_DISABLED = "1"
+  PRISMA_HIDE_UPDATE_MESSAGE = "1"
+
+[functions]
+  external_node_modules = ["@prisma/client", "prisma", ".prisma/client"]
+  included_files = ["node_modules/.prisma/client/**", "node_modules/@prisma/client/**"]
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
