@@ -4,6 +4,7 @@ import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { EventBusProvider } from "@/components/providers/EventBus";
 import { ToastProvider } from "@/components/ui/Toast";
+import { Shell } from "@/components/shell/Shell";
 
 export const metadata: Metadata = {
   title: "Fatura CRM — Pipeline visual enterprise",
@@ -26,7 +27,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <AuthProvider>
             <EventBusProvider>
-              <ToastProvider>{children}</ToastProvider>
+              <ToastProvider>
+                <Shell>{children}</Shell>
+              </ToastProvider>
             </EventBusProvider>
           </AuthProvider>
         </ThemeProvider>

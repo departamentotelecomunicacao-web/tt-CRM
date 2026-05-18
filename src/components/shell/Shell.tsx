@@ -1,7 +1,16 @@
+"use client";
+import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/shell/Sidebar";
 import { Topbar } from "@/components/shell/Topbar";
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+const NO_SHELL = ["/login"];
+
+export function Shell({ children }: { children: React.ReactNode }) {
+  const path = usePathname();
+  const bare = NO_SHELL.some((p) => path === p || path.startsWith(p + "/"));
+
+  if (bare) return <>{children}</>;
+
   return (
     <>
       <div className="pointer-events-none fixed inset-0 -z-10 bg-mesh opacity-60" />
