@@ -2,8 +2,16 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/server/auth";
 import { ensureBootstrap } from "@/server/bootstrap";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function GET() {
-  await ensureBootstrap();
+  try {
+    await ensureBootstrap();
+  } catch {
+    // Sem DB: ainda retorna 401 (cliente trata como "não autenticado")
+    return NextResponse.json({ user: null }, { status: 401 });
+  }
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ user: null }, { status: 401 });
   return NextResponse.json({
