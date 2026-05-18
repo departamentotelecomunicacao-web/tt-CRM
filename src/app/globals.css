@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+  html,
+  body {
+    @apply bg-ink-950 text-slate-100 antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+  ::selection {
+    background: rgba(34, 211, 238, 0.25);
+    color: #fff;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply border border-white/5 bg-white/[0.03] backdrop-blur-xl;
+  }
+  .glass-strong {
+    @apply border border-white/10 bg-white/[0.05] backdrop-blur-2xl;
+  }
+  .card-premium {
+    @apply rounded-2xl border border-white/5 bg-grad-card shadow-card transition-all duration-300 hover:shadow-card-hover;
+  }
+  .gradient-text {
+    @apply bg-grad-primary bg-clip-text text-transparent;
+  }
+  .ring-focus {
+    @apply outline-none ring-2 ring-cyan-400/40 ring-offset-2 ring-offset-ink-950;
+  }
+  .scroll-thin::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+  }
+  .scroll-thin::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 999px;
+  }
+  .scroll-thin::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+  .dot {
+    @apply inline-block h-2 w-2 rounded-full;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] font-medium text-slate-200;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 active:scale-[0.98];
+  }
+  .btn-primary {
+    @apply btn bg-grad-primary text-white shadow-glow hover:brightness-110;
+  }
+  .btn-ghost {
+    @apply btn border border-white/10 bg-white/5 text-slate-100 hover:bg-white/10;
+  }
+  .input {
+    @apply w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-400 focus:border-cyan-400/40 focus:outline-none focus:ring-2 focus:ring-cyan-400/30;
+  }
+}
+
+.bg-mesh {
+  background-image:
+    radial-gradient(50% 50% at 0% 0%, rgba(39, 64, 240, 0.25) 0%, transparent 60%),
+    radial-gradient(40% 40% at 100% 0%, rgba(34, 211, 238, 0.18) 0%, transparent 60%),
+    radial-gradient(60% 60% at 50% 100%, rgba(29, 43, 129, 0.35) 0%, transparent 60%);
+}
+.bg-grid {
+  background-image: linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 36px 36px;
+}
