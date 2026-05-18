@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
-    "netlify-build": "prisma generate && (DATABASE_URL=\"${DATABASE_URL:-$NETLIFY_DATABASE_URL}\" prisma db push --accept-data-loss --skip-generate || echo 'db push skipped') && next build",
+    "netlify-build": "bash scripts/netlify-build.sh",
     "start": "next start",
     "lint": "next lint",
     "db:push": "prisma db push",
