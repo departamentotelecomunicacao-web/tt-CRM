@@ -34,7 +34,13 @@ function LoginInner() {
       const from = params.get("from") || "/";
       router.replace(from);
     } catch (e: any) {
-      setErr(e?.body?.error ?? "Não foi possível entrar.");
+      const code = e?.status;
+      const body = e?.body?.error;
+      if (code === 401) setErr("Usuário ou senha incorretos.");
+      else if (code === 500 || code === 502 || code === 503)
+        setErr(`Erro do servidor (${code}). Verifique se o banco de dados está conectado.`);
+      else if (typeof body === "string") setErr(body);
+      else setErr(`Não foi possível entrar${code ? ` (HTTP ${code})` : ""}.`);
     } finally {
       setLoading(false);
     }
@@ -64,7 +70,7 @@ function LoginInner() {
               Gestão comercial <span className="gradient-text">de alta performance</span>.
             </h1>
             <p className="mt-4 text-base text-secondary">
-              Kanban operacional, automações, omnichannel e copiloto IA — em uma plataforma SaaS feita para times que vendem todos os dias.
+              Kanban operacional, automações, omnichannel e copiloto IA em uma plataforma SaaS feita para times que vendem todos os dias.
             </p>
 
             <ul className="mt-8 space-y-3 text-sm text-secondary">
@@ -145,14 +151,6 @@ function LoginInner() {
                 {loading ? "Entrando..." : "Entrar no CRM"}
               </button>
             </form>
-
-            <div className="mt-6 rounded-xl border border-[rgb(var(--border))] surface p-3 text-[11px] text-tertiary">
-              <div className="mb-1 font-semibold uppercase tracking-wider text-secondary">
-                Credenciais iniciais
-              </div>
-              Usuário: <code className="text-primary">Departartamento_ADM</code><br />
-              Senha: <code className="text-primary">Light@2255</code>
-            </div>
           </motion.div>
         </div>
       </div>
