@@ -1,29 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
-import { prisma } from "@/server/db";
+import { db, safeUser } from "@/server/models";
+import { cuid } from "@/server/store";
 import { requireSession } from "@/server/auth";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const ADMIN_ROLES = ["owner", "admin"];
 
 export async function GET() {
   const s = await requireSession();
-  const users = await prisma.user.findMany({
-    where: { organizationId: s.org },
-    orderBy: { createdAt: "asc" },
-    select: {
-      id: true,
-      username: true,
-      email: true,
-      name: true,
-      role: true,
-      avatarTone: true,
-      active: true,
-      lastLoginAt: true,
-      createdAt: true,
-    },
-  });
-  return NextResponse.json({ users });
+  const users = await db.users.filter((u) => u.organizationId === s.org);
+  users.sort((a, b) => (a.createdAt ?? "").localeCompare(b.createdAt ?? ""));
+  return NextResponse.json({ users: users.map(safeUser) });
 }
 
 const create = z.object({
@@ -44,7 +35,7 @@ export async function POST(req: NextRequest) {
   const p = create.safeParse(body);
   if (!p.success) return NextResponse.json({ error: p.error.flatten() }, { status: 400 });
 
-  const exists = await prisma.user.findUnique({ where: { username: p.data.username } });
+  const exists = await db.users.find((u) => u.username === p.data.username);
   if (exists) return NextResponse.json({ error: "Username já existe." }, { status: 409 });
 
   const passwordHash = await bcrypt.hash(p.data.password, 10);
@@ -56,28 +47,28 @@ export async function POST(req: NextRequest) {
     "from-rose-400 to-violet-600",
   ];
 
-  const user = await prisma.user.create({
-    data: {
-      organizationId: s.org,
-      username: p.data.username,
-      name: p.data.name,
-      email: p.data.email || null,
-      passwordHash,
-      role: p.data.role,
-      avatarTone: p.data.avatarTone ?? tones[Math.floor(Math.random() * tones.length)],
-    },
-    select: { id: true, username: true, name: true, email: true, role: true, avatarTone: true, active: true, createdAt: true },
+  const user = await db.users.put({
+    id: cuid(),
+    organizationId: s.org,
+    username: p.data.username,
+    name: p.data.name,
+    email: p.data.email || null,
+    passwordHash,
+    role: p.data.role,
+    avatarTone: p.data.avatarTone ?? tones[Math.floor(Math.random() * tones.length)],
+    active: true,
+    lastLoginAt: null,
   });
 
-  await prisma.auditLog.create({
-    data: {
-      organizationId: s.org,
-      userId: s.uid,
-      action: "user.created",
-      entity: "user",
-      entityId: user.id,
-      meta: JSON.stringify({ role: user.role }),
-    },
+  await db.auditLogs.put({
+    id: cuid(),
+    organizationId: s.org,
+    userId: s.uid,
+    action: "user.created",
+    entity: "user",
+    entityId: user.id,
+    meta: { role: user.role },
+    ip: null,
   });
-  return NextResponse.json({ user }, { status: 201 });
+  return NextResponse.json({ user: safeUser(user) }, { status: 201 });
 }

@@ -1,13 +1,13 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { prisma } from "./db";
+import { db } from "./models";
 
 const SECRET = new TextEncoder().encode(
   process.env.AUTH_SECRET ?? "fatura-crm-dev-secret-change-in-production-2026"
 );
 const COOKIE = "fcrm_session";
-const MAX_AGE = 60 * 60 * 24 * 7; // 7 days
+const MAX_AGE = 60 * 60 * 24 * 7;
 
 export interface SessionPayload {
   uid: string;
@@ -43,11 +43,11 @@ export async function getSession(): Promise<SessionPayload | null> {
 export async function getCurrentUser() {
   const s = await getSession();
   if (!s) return null;
-  const user = await prisma.user.findUnique({
-    where: { id: s.uid },
-    include: { organization: true },
-  });
-  return user;
+  const user = await db.users.get(s.uid);
+  if (!user) return null;
+  const organization = await db.organizations.get(user.organizationId);
+  if (!organization) return null;
+  return { ...user, organization };
 }
 
 export function setSessionCookie(res: NextResponse, token: string) {
@@ -73,17 +73,6 @@ export async function requireSession() {
   if (!s) {
     throw new Response(JSON.stringify({ error: "unauthorized" }), {
       status: 401,
-      headers: { "content-type": "application/json" },
-    });
-  }
-  return s;
-}
-
-export async function requireRole(roles: string[]) {
-  const s = await requireSession();
-  if (!roles.includes(s.role)) {
-    throw new Response(JSON.stringify({ error: "forbidden" }), {
-      status: 403,
       headers: { "content-type": "application/json" },
     });
   }

@@ -1,26 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/server/db";
+import { db } from "@/server/models";
+import { cuid } from "@/server/store";
 import { requireSession } from "@/server/auth";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const s = await requireSession();
   const dealId = req.nextUrl.searchParams.get("dealId");
   const contactId = req.nextUrl.searchParams.get("contactId");
   const type = req.nextUrl.searchParams.get("type");
-
-  const activities = await prisma.activity.findMany({
-    where: {
-      organizationId: s.org,
-      ...(dealId ? { dealId } : {}),
-      ...(contactId ? { contactId } : {}),
-      ...(type ? { type } : {}),
-    },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-    include: { author: { select: { name: true, avatarTone: true } } },
+  let activities = await db.activities.filter((a) => {
+    if (a.organizationId !== s.org) return false;
+    if (dealId && a.dealId !== dealId) return false;
+    if (contactId && a.contactId !== contactId) return false;
+    if (type && a.type !== type) return false;
+    return true;
   });
-  return NextResponse.json({ activities });
+  activities.sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
+  return NextResponse.json({ activities: activities.slice(0, 100) });
 }
 
 const create = z.object({
@@ -36,17 +36,17 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const p = create.safeParse(body);
   if (!p.success) return NextResponse.json({ error: p.error.flatten() }, { status: 400 });
-  const a = await prisma.activity.create({
-    data: {
-      organizationId: s.org,
-      type: p.data.type,
-      title: p.data.title,
-      body: p.data.body,
-      dealId: p.data.dealId,
-      contactId: p.data.contactId,
-      authorId: s.uid,
-      authorName: s.name,
-    },
+  const a = await db.activities.put({
+    id: cuid(),
+    organizationId: s.org,
+    type: p.data.type,
+    title: p.data.title,
+    body: p.data.body ?? null,
+    meta: null,
+    dealId: p.data.dealId ?? null,
+    contactId: p.data.contactId ?? null,
+    authorId: s.uid,
+    authorName: s.name,
   });
   return NextResponse.json({ activity: a }, { status: 201 });
 }

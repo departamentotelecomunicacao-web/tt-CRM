@@ -9,7 +9,6 @@ export async function GET() {
   try {
     await ensureBootstrap();
   } catch {
-    // Sem DB: ainda retorna 401 (cliente trata como "não autenticado")
     return NextResponse.json({ user: null }, { status: 401 });
   }
   const user = await getCurrentUser();

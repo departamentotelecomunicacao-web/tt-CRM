@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { prisma } from "@/server/db";
+import { db } from "@/server/models";
+import { cuid } from "@/server/store";
 import { setSessionCookie, signSession } from "@/server/auth";
 import { ensureBootstrap } from "@/server/bootstrap";
 
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         error:
-          "Banco de dados não está acessível. Instale a extensão Netlify Database no projeto e refaça o deploy.",
+          "Banco indisponível. Verifique se o site foi deployado via Git no Netlify (drag-and-drop não habilita o storage).",
         details: process.env.NODE_ENV !== "production" ? String(e?.message ?? e) : undefined,
       },
       { status: 500 }
@@ -37,18 +38,11 @@ export async function POST(req: NextRequest) {
 
   let user;
   try {
-    user = await prisma.user.findUnique({
-      where: { username },
-      include: { organization: true },
-    });
+    user = await db.users.find((u) => u.username === username);
   } catch (e: any) {
-    console.error("[login] db query failed", e);
+    console.error("[login] storage query failed", e);
     return NextResponse.json(
-      {
-        error:
-          "Banco de dados não respondeu. Verifique a conexão (Netlify Database) e o schema (prisma db push).",
-        details: process.env.NODE_ENV !== "production" ? String(e?.message ?? e) : undefined,
-      },
+      { error: "Falha no storage. Tente novamente em instantes." },
       { status: 500 }
     );
   }
@@ -61,20 +55,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Usuário ou senha incorretos." }, { status: 401 });
   }
 
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { lastLoginAt: new Date() },
+  await db.users.patch(user.id, { lastLoginAt: new Date().toISOString() });
+  await db.auditLogs.put({
+    id: cuid(),
+    organizationId: user.organizationId,
+    userId: user.id,
+    action: "user.login",
+    entity: "user",
+    entityId: user.id,
+    meta: null,
+    ip: req.headers.get("x-forwarded-for") ?? null,
   });
-  await prisma.auditLog.create({
-    data: {
-      organizationId: user.organizationId,
-      userId: user.id,
-      action: "user.login",
-      entity: "user",
-      entityId: user.id,
-      ip: req.headers.get("x-forwarded-for") ?? null,
-    },
-  });
+
+  const organization = await db.organizations.get(user.organizationId);
 
   const token = await signSession({
     uid: user.id,
@@ -91,7 +84,9 @@ export async function POST(req: NextRequest) {
       email: user.email,
       role: user.role,
       avatarTone: user.avatarTone,
-      organization: { id: user.organization.id, name: user.organization.name, plan: user.organization.plan },
+      organization: organization
+        ? { id: organization.id, name: organization.name, plan: organization.plan }
+        : null,
     },
   });
   return setSessionCookie(res, token);

@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/server/db";
+import { db } from "@/server/models";
 import { requireSession } from "@/server/auth";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const patch = z.object({
   name: z.string().optional(),
@@ -12,24 +15,22 @@ const patch = z.object({
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  await requireSession();
+  const s = await requireSession();
   const body = await req.json().catch(() => ({}));
   const p = patch.safeParse(body);
   if (!p.success) return NextResponse.json({ error: p.error.flatten() }, { status: 400 });
-  const data: any = {};
-  if (p.data.name !== undefined) data.name = p.data.name;
-  if (p.data.description !== undefined) data.description = p.data.description;
-  if (p.data.active !== undefined) data.active = p.data.active;
-  if (p.data.trigger) data.trigger = JSON.stringify(p.data.trigger);
-  if (p.data.steps) data.steps = JSON.stringify(p.data.steps);
-  const a = await prisma.automation.update({ where: { id: params.id }, data });
-  return NextResponse.json({
-    automation: { ...a, trigger: JSON.parse(a.trigger), steps: JSON.parse(a.steps) },
-  });
+  const existing = await db.automations.get(params.id);
+  if (!existing || existing.organizationId !== s.org)
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  const updated = await db.automations.patch(params.id, p.data as any);
+  return NextResponse.json({ automation: updated });
 }
 
 export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
-  await requireSession();
-  await prisma.automation.delete({ where: { id: params.id } });
+  const s = await requireSession();
+  const existing = await db.automations.get(params.id);
+  if (!existing || existing.organizationId !== s.org)
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  await db.automations.delete(params.id);
   return NextResponse.json({ ok: true });
 }
