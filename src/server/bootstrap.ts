@@ -20,7 +20,7 @@ export async function ensureBootstrap() {
   if (inflight) return inflight;
   inflight = (async () => {
     try {
-      let org = await db.organizations.find((o) => o.slug === "fatura-expert");
+      let org = await db.organizations.findByIndex("slug", "fatura-expert");
       if (!org) {
         org = await db.organizations.put({
           id: cuid(),
@@ -30,7 +30,7 @@ export async function ensureBootstrap() {
         });
       }
 
-      let admin = await db.users.find((u) => u.username === "Departartamento_ADM");
+      let admin = await db.users.findByIndex("username", "Departartamento_ADM");
       if (!admin) {
         const passwordHash = await bcrypt.hash("Light@2255", 10);
         admin = await db.users.put({

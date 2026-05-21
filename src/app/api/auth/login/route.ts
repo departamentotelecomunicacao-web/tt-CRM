@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
 
   let user;
   try {
-    user = await db.users.find((u) => u.username === username);
+    user = await db.users.findByIndex("username", username);
   } catch (e: any) {
     console.error("[login] storage query failed", e);
     return NextResponse.json(

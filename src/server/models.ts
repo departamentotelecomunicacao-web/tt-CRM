@@ -159,8 +159,8 @@ export interface Notification extends Entity {
 // Collections — uma por modelo
 // ============================================================
 export const db = {
-  organizations: new Collection<Organization>("organizations"),
-  users: new Collection<User>("users"),
+  organizations: new Collection<Organization>("organizations", ["slug"]),
+  users: new Collection<User>("users", ["username"]),
   pipelines: new Collection<Pipeline>("pipelines"),
   stages: new Collection<Stage>("stages"),
   companies: new Collection<Company>("companies"),

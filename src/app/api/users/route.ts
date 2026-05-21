@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
   const p = create.safeParse(body);
   if (!p.success) return NextResponse.json({ error: p.error.flatten() }, { status: 400 });
 
-  const exists = await db.users.find((u) => u.username === p.data.username);
+  const exists = await db.users.findByIndex("username", p.data.username);
   if (exists) return NextResponse.json({ error: "Username já existe." }, { status: 409 });
 
   const passwordHash = await bcrypt.hash(p.data.password, 10);
