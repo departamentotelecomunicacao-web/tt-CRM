@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { rawStore } from "@/server/store";
+import { rawStore, currentBackend } from "@/server/store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,9 +34,10 @@ export async function GET() {
     env.NETLIFY_SITE_ID_present
   );
 
-  const probe: any = { ok: false, error: null, backend: usingNetlify ? "netlify-blobs" : "file" };
+  const probe: any = { ok: false, error: null, backend: "unknown" };
   try {
     const s = rawStore("__diag");
+    probe.backend = currentBackend();
     const key = "ping";
     const value = `pong-${Date.now()}`;
     await s.set(key, value);

@@ -20,11 +20,7 @@ interface RawStore {
 
 // ---------- Backend: Netlify Blobs (produção) ----------
 class NetlifyStore implements RawStore {
-  private store: any;
-  constructor(name: string) {
-    const { getStore } = require("@netlify/blobs");
-    this.store = getStore({ name, consistency: "strong" });
-  }
+  constructor(private store: any) {}
   async get(key: string) {
     const v = await this.store.get(key);
     return v ?? null;
@@ -41,8 +37,12 @@ class NetlifyStore implements RawStore {
   }
 }
 
-// ---------- Backend: arquivo JSON (desenvolvimento local) ----------
-const DEV_DIR = path.join(process.cwd(), ".fcrm-data");
+// ---------- Backend: arquivo JSON (dev local ou fallback)
+// Em ambientes serverless (Netlify Functions), apenas /tmp é gravável.
+const DEV_DIR =
+  process.env.NETLIFY === "true" || process.env.LAMBDA_TASK_ROOT
+    ? path.join("/tmp", "fcrm-data")
+    : path.join(process.cwd(), ".fcrm-data");
 
 class FileStore implements RawStore {
   constructor(private name: string) {}
@@ -82,23 +82,55 @@ class FileStore implements RawStore {
   }
 }
 
-function isNetlifyRuntime() {
-  return !!(
-    process.env.NETLIFY ||
-    process.env.NETLIFY_LOCAL ||
-    process.env.NETLIFY_DEV ||
-    process.env.SITE_ID ||
-    process.env.NETLIFY_SITE_ID
-  );
+// Backend é decidido na 1a chamada: tenta Netlify Blobs, e só usa FileStore
+// como fallback se Blobs lançar (ambiente local sem credenciais).
+let backendChoice: "netlify" | "file" | null = null;
+let blobsModule: any = null;
+
+function tryGetBlobsStore(name: string): any | null {
+  try {
+    if (!blobsModule) blobsModule = require("@netlify/blobs");
+    return blobsModule.getStore({ name, consistency: "strong" });
+  } catch (e: any) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[store] @netlify/blobs unavailable, falling back to FileStore:", e?.message);
+    }
+    return null;
+  }
 }
 
 const stores = new Map<string, RawStore>();
 export function rawStore(name: string): RawStore {
   let s = stores.get(name);
   if (s) return s;
-  s = isNetlifyRuntime() ? new NetlifyStore(name) : new FileStore(name);
+
+  // Forçar via env var (debug)
+  if (process.env.FCRM_STORAGE === "file") {
+    s = new FileStore(name);
+    stores.set(name, s);
+    return s;
+  }
+
+  // 1ª escolha: Netlify Blobs
+  if (backendChoice !== "file") {
+    const blobsStore = tryGetBlobsStore(name);
+    if (blobsStore) {
+      backendChoice = "netlify";
+      s = new NetlifyStore(blobsStore);
+      stores.set(name, s);
+      return s;
+    }
+    backendChoice = "file";
+  }
+
+  // Fallback: arquivo (dev ou caso Blobs não esteja disponível)
+  s = new FileStore(name);
   stores.set(name, s);
   return s;
+}
+
+export function currentBackend(): "netlify" | "file" | "unknown" {
+  return backendChoice ?? "unknown";
 }
 
 // ---------- Cache em memória (TTL curto, escopo do processo) ----------
