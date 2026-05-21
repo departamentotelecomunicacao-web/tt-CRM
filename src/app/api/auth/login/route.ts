@@ -36,13 +36,29 @@ export async function POST(req: NextRequest) {
   }
   const { username, password } = parsed.data;
 
+  // Aceita variações comuns: "Departamento", "Departamento_ADM",
+  // "Departartamento_ADM" (typo legado). Tudo case-insensitive.
+  const ALIAS_MAP: Record<string, string> = {
+    "departamento": "Departamento",
+    "departamento_adm": "Departamento",
+    "departartamento_adm": "Departamento",
+    "departamentoadm": "Departamento",
+  };
+  const normalized = username.trim();
+  const canonical = ALIAS_MAP[normalized.toLowerCase()] ?? normalized;
+
   let user;
   try {
-    user = await db.users.findByIndex("username", username);
+    user =
+      (await db.users.findByIndex("username", canonical)) ||
+      (await db.users.find((u) => u.username.toLowerCase() === normalized.toLowerCase()));
   } catch (e: any) {
     console.error("[login] storage query failed", e);
     return NextResponse.json(
-      { error: "Falha no storage. Tente novamente em instantes." },
+      {
+        error: "Falha no storage. Tente novamente em instantes.",
+        details: process.env.NODE_ENV !== "production" ? String(e?.message ?? e) : undefined,
+      },
       { status: 500 }
     );
   }

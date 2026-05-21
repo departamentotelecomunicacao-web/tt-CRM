@@ -30,13 +30,13 @@ export async function ensureBootstrap() {
         });
       }
 
-      let admin = await db.users.findByIndex("username", "Departartamento_ADM");
+      let admin = await db.users.findByIndex("username", "Departamento");
       if (!admin) {
         const passwordHash = await bcrypt.hash("Light@2255", 10);
         admin = await db.users.put({
           id: cuid(),
           organizationId: org.id,
-          username: "Departartamento_ADM",
+          username: "Departamento",
           name: "Departamento ADM",
           email: "adm@faturaexpert.com",
           passwordHash,

@@ -112,7 +112,7 @@ function LoginInner() {
                 <label className="mb-1 block text-xs font-semibold text-secondary">Usuário</label>
                 <input
                   className="input"
-                  placeholder="Departartamento_ADM"
+                  placeholder="Departamento"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   autoFocus
