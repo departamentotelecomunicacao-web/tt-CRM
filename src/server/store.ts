@@ -86,14 +86,36 @@ class FileStore implements RawStore {
 // como fallback se Blobs lançar (ambiente local sem credenciais).
 let backendChoice: "netlify" | "file" | null = null;
 let blobsModule: any = null;
+let lastBlobsError: string | null = null;
 
 function tryGetBlobsStore(name: string): any | null {
   try {
     if (!blobsModule) blobsModule = require("@netlify/blobs");
+
+    // Modo manual: funciona em qualquer tipo de deploy (incl. drag-and-drop)
+    // se NETLIFY_SITE_ID + um token estiverem configurados nas env vars.
+    const siteID =
+      process.env.NETLIFY_SITE_ID ||
+      process.env.SITE_ID ||
+      process.env.BLOBS_SITE_ID;
+    const token =
+      process.env.NETLIFY_BLOBS_TOKEN ||
+      process.env.NETLIFY_API_TOKEN ||
+      process.env.NETLIFY_AUTH_TOKEN ||
+      process.env.BLOBS_TOKEN;
+
+    if (siteID && token) {
+      return blobsModule.getStore({ name, siteID, token, consistency: "strong" });
+    }
+
+    // Modo automático: contexto injetado pelo runtime do Netlify (deploy via Git/CLI)
     return blobsModule.getStore({ name, consistency: "strong" });
   } catch (e: any) {
+    lastBlobsError = `${e?.name ?? "Error"}: ${e?.message ?? String(e)}`;
     if (process.env.NODE_ENV !== "production") {
-      console.warn("[store] @netlify/blobs unavailable, falling back to FileStore:", e?.message);
+      console.warn("[store] @netlify/blobs indisponível, usando FileStore:", lastBlobsError);
+    } else {
+      console.warn("[store] @netlify/blobs indisponível:", lastBlobsError);
     }
     return null;
   }
@@ -131,6 +153,21 @@ export function rawStore(name: string): RawStore {
 
 export function currentBackend(): "netlify" | "file" | "unknown" {
   return backendChoice ?? "unknown";
+}
+
+export function lastBlobsErrorMessage(): string | null {
+  return lastBlobsError;
+}
+
+export function blobsCredentialsConfigured(): boolean {
+  const siteID =
+    process.env.NETLIFY_SITE_ID || process.env.SITE_ID || process.env.BLOBS_SITE_ID;
+  const token =
+    process.env.NETLIFY_BLOBS_TOKEN ||
+    process.env.NETLIFY_API_TOKEN ||
+    process.env.NETLIFY_AUTH_TOKEN ||
+    process.env.BLOBS_TOKEN;
+  return !!(siteID && token);
 }
 
 // ---------- Cache em memória (TTL curto, escopo do processo) ----------
