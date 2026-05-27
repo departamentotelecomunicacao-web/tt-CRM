@@ -18,7 +18,68 @@ interface RawStore {
   list(): Promise<string[]>;
 }
 
-// ---------- Backend: Netlify Blobs (produção) ----------
+// ---------- Backend: Redis via REST (Upstash / Vercel KV) ----------
+// Funciona em QUALQUER plataforma (Vercel, Netlify, etc.) usando só fetch.
+// Env vars aceitas:
+//   KV_REST_API_URL + KV_REST_API_TOKEN          (Vercel KV / Marketplace Upstash)
+//   UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN  (Upstash direto)
+function redisCreds(): { url: string; token: string } | null {
+  const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (url && token) return { url: url.replace(/\/$/, ""), token };
+  return null;
+}
+
+class RedisStore implements RawStore {
+  // chaves namespaced: fcrm:{collection}:{key}
+  private prefix: string;
+  constructor(private name: string, private creds: { url: string; token: string }) {
+    this.prefix = `fcrm:${name}:`;
+  }
+  private async cmd(args: (string | number)[]): Promise<any> {
+    const res = await fetch(this.creds.url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.creds.token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(args),
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`Redis REST ${res.status}: ${text.slice(0, 200)}`);
+    }
+    const data = await res.json();
+    if (data.error) throw new Error(`Redis: ${data.error}`);
+    return data.result;
+  }
+  async get(key: string) {
+    const r = await this.cmd(["GET", this.prefix + key]);
+    return (r ?? null) as string | null;
+  }
+  async set(key: string, value: string) {
+    await this.cmd(["SET", this.prefix + key, value]);
+  }
+  async delete(key: string) {
+    await this.cmd(["DEL", this.prefix + key]);
+  }
+  async list() {
+    // SCAN iterativo para não bloquear em datasets grandes
+    let cursor = "0";
+    const keys: string[] = [];
+    do {
+      const [next, batch] = (await this.cmd([
+        "SCAN", cursor, "MATCH", this.prefix + "*", "COUNT", 200,
+      ])) as [string, string[]];
+      cursor = next;
+      for (const k of batch) keys.push(k.slice(this.prefix.length));
+    } while (cursor !== "0");
+    return keys;
+  }
+}
+
+// ---------- Backend: Netlify Blobs (produção Netlify) ----------
 class NetlifyStore implements RawStore {
   constructor(private store: any) {}
   async get(key: string) {
@@ -82,9 +143,11 @@ class FileStore implements RawStore {
   }
 }
 
-// Backend é decidido na 1a chamada: tenta Netlify Blobs, e só usa FileStore
-// como fallback se Blobs lançar (ambiente local sem credenciais).
-let backendChoice: "netlify" | "file" | null = null;
+// Backend é decidido na 1a chamada, por ordem de prioridade:
+//   1. Redis REST (Upstash / Vercel KV)  — funciona em qualquer plataforma
+//   2. Netlify Blobs                      — quando rodando no Netlify
+//   3. FileStore                          — dev local / fallback
+let backendChoice: "redis" | "netlify" | "file" | null = null;
 let blobsModule: any = null;
 let lastBlobsError: string | null = null;
 
@@ -92,8 +155,6 @@ function tryGetBlobsStore(name: string): any | null {
   try {
     if (!blobsModule) blobsModule = require("@netlify/blobs");
 
-    // Modo manual: funciona em qualquer tipo de deploy (incl. drag-and-drop)
-    // se NETLIFY_SITE_ID + um token estiverem configurados nas env vars.
     const siteID =
       process.env.NETLIFY_SITE_ID ||
       process.env.SITE_ID ||
@@ -107,16 +168,10 @@ function tryGetBlobsStore(name: string): any | null {
     if (siteID && token) {
       return blobsModule.getStore({ name, siteID, token, consistency: "strong" });
     }
-
-    // Modo automático: contexto injetado pelo runtime do Netlify (deploy via Git/CLI)
     return blobsModule.getStore({ name, consistency: "strong" });
   } catch (e: any) {
     lastBlobsError = `${e?.name ?? "Error"}: ${e?.message ?? String(e)}`;
-    if (process.env.NODE_ENV !== "production") {
-      console.warn("[store] @netlify/blobs indisponível, usando FileStore:", lastBlobsError);
-    } else {
-      console.warn("[store] @netlify/blobs indisponível:", lastBlobsError);
-    }
+    console.warn("[store] @netlify/blobs indisponível:", lastBlobsError);
     return null;
   }
 }
@@ -126,14 +181,24 @@ export function rawStore(name: string): RawStore {
   let s = stores.get(name);
   if (s) return s;
 
-  // Forçar via env var (debug)
   if (process.env.FCRM_STORAGE === "file") {
     s = new FileStore(name);
     stores.set(name, s);
     return s;
   }
 
-  // 1ª escolha: Netlify Blobs
+  // 1ª escolha: Redis REST (Upstash / Vercel KV) — universal
+  if (backendChoice === "redis" || backendChoice === null) {
+    const creds = redisCreds();
+    if (creds) {
+      backendChoice = "redis";
+      s = new RedisStore(name, creds);
+      stores.set(name, s);
+      return s;
+    }
+  }
+
+  // 2ª escolha: Netlify Blobs
   if (backendChoice !== "file") {
     const blobsStore = tryGetBlobsStore(name);
     if (blobsStore) {
@@ -145,14 +210,18 @@ export function rawStore(name: string): RawStore {
     backendChoice = "file";
   }
 
-  // Fallback: arquivo (dev ou caso Blobs não esteja disponível)
+  // 3ª escolha: arquivo (dev ou fallback)
   s = new FileStore(name);
   stores.set(name, s);
   return s;
 }
 
-export function currentBackend(): "netlify" | "file" | "unknown" {
+export function currentBackend(): "redis" | "netlify" | "file" | "unknown" {
   return backendChoice ?? "unknown";
+}
+
+export function redisConfigured(): boolean {
+  return !!redisCreds();
 }
 
 export function lastBlobsErrorMessage(): string | null {

@@ -4,6 +4,7 @@ import {
   currentBackend,
   lastBlobsErrorMessage,
   blobsCredentialsConfigured,
+  redisConfigured,
 } from "@/server/store";
 
 export const runtime = "nodejs";
@@ -11,17 +12,16 @@ export const dynamic = "force-dynamic";
 
 /**
  * Diagnóstico público (sem autenticação): GET /api/diag
- * Mostra backend ativo, erro de Blobs (se houver) e roundtrip read/write.
+ * Mostra qual backend de storage está ativo e se ele responde.
  */
 export async function GET() {
   const env = {
     NODE_ENV: process.env.NODE_ENV,
-    NETLIFY: !!process.env.NETLIFY,
+    platform: process.env.VERCEL ? "vercel" : process.env.NETLIFY ? "netlify" : "other",
+    redis_configured: redisConfigured(),
+    netlify_blobs_manual_creds: blobsCredentialsConfigured(),
     has_NETLIFY_BLOBS_CONTEXT: !!process.env.NETLIFY_BLOBS_CONTEXT,
     has_AUTH_SECRET: !!process.env.AUTH_SECRET,
-    blobs_manual_creds: blobsCredentialsConfigured(),
-    DEPLOY_ID: process.env.DEPLOY_ID ?? null,
-    DEPLOY_PRIME_URL: process.env.DEPLOY_PRIME_URL ?? null,
   };
 
   const probe: any = { ok: false, error: null, backend: "unknown" };
@@ -41,18 +41,19 @@ export async function GET() {
   probe.blobsInitError = lastBlobsErrorMessage();
 
   let hint: string;
-  if (probe.ok && probe.backend === "netlify") {
-    hint = "✅ Netlify Blobs ativo e funcionando. Login deve funcionar normalmente.";
-  } else if (probe.backend === "file") {
+  if (probe.ok && probe.backend === "redis") {
+    hint = "✅ Redis (Upstash/Vercel KV) ativo. Login deve funcionar.";
+  } else if (probe.ok && probe.backend === "netlify") {
+    hint = "✅ Netlify Blobs ativo. Login deve funcionar.";
+  } else if (probe.backend === "file" || !probe.ok) {
     hint =
-      "⚠️ Caiu no FileStore (não persiste de forma confiável em serverless). " +
-      "Netlify Blobs não está disponível neste deploy. " +
-      (env.blobs_manual_creds
-        ? "Credenciais manuais detectadas mas falharam — veja blobsInitError."
-        : "Solução A: faça deploy via Git (Netlify injeta o contexto). " +
-          "Solução B: configure as env vars NETLIFY_SITE_ID e NETLIFY_BLOBS_TOKEN.");
+      "⚠️ Nenhum storage persistente disponível. " +
+      "No Vercel: adicione a integração Upstash (KV) no painel Storage — ela injeta " +
+      "KV_REST_API_URL e KV_REST_API_TOKEN automaticamente. Depois faça redeploy. " +
+      "Alternativa: crie uma conta gratuita em upstash.com e configure " +
+      "UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN nas Environment Variables.";
   } else {
-    hint = "Estado indefinido. Veja storage.error e storage.blobsInitError.";
+    hint = "Estado indefinido. Veja storage.error.";
   }
 
   return NextResponse.json(
